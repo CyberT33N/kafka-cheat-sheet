@@ -9,7 +9,7 @@ Kafka.js with the most needed stuff..
 <br><br>
 
 # DOCS
-- https://kafka.js.org/docs
+- [https://kafka.js.org/docs](https://kafka.js.org/docs/getting-started)
 
 
 
