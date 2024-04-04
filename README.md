@@ -17,6 +17,9 @@ Kafka.js with the most needed stuff..
 
 
 
+
+
+
 <br><br>
 <br><br>
 
@@ -28,7 +31,271 @@ Kafka.js with the most needed stuff..
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 <br><br>
+<br><br>
+_______________________________________________________________
+_______________________________________________________________
+<br><br>
+<br><br>
+
+# send
+```javascript
+'use strict'
+
+const { Kafka } = require('kafkajs')
+const { AisAvroMessageConverter } = require('ais-kernel-kafka')
+const { v4: uuid } = require('uuid')
+
+/**
+ * Represents a KafkaHelper.
+ */
+class KafkaHelper {
+    /**
+     * Constructs a new KafkaHelper instance.
+     */
+    constructor() {
+        this.broker = 'localhost:9092'
+        this.clientId = `KafkaHelper-${uuid()}`
+    }
+
+    /**
+     * Creates a Kafka producer.
+     */
+    async _createProducer() {
+        try { 
+            const kafka = new Kafka({
+                clientId: this.clientId,
+                brokers: [this.broker]
+            })
+        
+            this.producer = kafka.producer()
+        } catch (e) {
+            throw new BaseError('_createProducer() - Error while create producer', e)
+        }
+    }
+
+    /**
+     * Connect to producer
+     */
+    async connect() {
+        if (!this.producer) {
+            await this._createProducer()
+        }
+
+        try { 
+            await this.producer.connect()
+        } catch (e) {
+            throw new BaseError('connect() - Error while connect to producer', e)
+        }
+    }
+
+    /**
+     * Sends a message to a topic.
+     * @param {string} msg - The text of the message.
+     * @param {string} topic - The name of topic.
+     */
+    async sendMessage(msg, topic) {
+        if (!this.producer) {
+            await this.connect()
+        }
+
+        try {
+            await this.producer.send({
+                topic,
+                messages: [
+                    {
+                        value: msg
+                    }
+                ]
+            })
+        } catch (e) {
+            throw new BaseError('sendMessage() - Error while sending message to topic', e)
+        }
+    }
+
+    /**
+     * Sends an Avro message to a topic.
+     * @param {object} body - The body of the message.
+     * @param {string} topic - The name of the topic.
+     * @param {object} headers - The headers of the message.
+     * @param {object} options - The options for sending the message (optional).
+     */
+    async sendMessageAvro(body, topic, headers = {}, options = {}) {
+        if (!this.producer) {
+            await this.connect()
+        }
+
+        const messages = [{ value: AisAvroMessageConverter.convertToAvro(headers, body) }]
+
+        try {
+            await this.producer.send({ topic, messages })
+        } catch (e) {
+            throw new BaseError('sendMessage() - Error while sending message to topic', e)
+        }
+    }
+}
+
+module.exports = KafkaHelper
+```
+
+```javascript
+/**
+ * 
+ * @param {*} testRequirements 
+ */
+module.exports = testRequirements => {
+    with (testRequirements) {
+        describe('[UNIT] - KafkaHelper', () => {
+            let kafkaHelper
+
+            beforeEach(() => {
+                kafkaHelper = new KafkaHelper()
+            })
+      
+            afterEach(() => {
+                sinon.restore()
+            })
+      
+            describe('constructor', () => {
+                it('should initialize broker and clientId', () => {
+                    expect(kafkaHelper.broker).to.exist
+                    expect(kafkaHelper.clientId).to.equal('KafkaHelper')
+                })
+            })
+
+            describe('_createProducer()', () => {
+                it('should create producer', async () => {
+                    await kafkaHelper._createProducer()
+                    expect(kafkaHelper.producer).to.exists
+                })
+            })
+      
+            describe('connect()', () => {
+                it('should connect to Kafka producer', async () => {
+                    const createProducerSpy = sinon.spy(kafkaHelper, '_createProducer')
+
+                    const producerMock = {
+                        connect: sinon.stub().resolves()
+                    }
+ 
+                    kafkaHelper.producer = producerMock
+
+                    // _createProducer() should be not called because we overwrite this.producer
+                    await kafkaHelper.connect()
+
+                    expect(createProducerSpy.calledOnce).to.be.false
+                    expect(kafkaHelper.producer).to.exists
+                    expect(producerMock.connect.calledOnce).to.be.true
+                })
+            })
+      
+            describe('sendMessage()', () => {
+                let producerMock
+
+                const msg = 'Test message'
+                const topic = process.env.AIS_KAFKA_DLQ_TOPIC
+      
+                beforeEach(() => {
+                    producerMock = {
+                        connect: sinon.stub().resolves(),
+                        send: sinon.stub().resolves()
+                    }
+
+                    kafkaHelper.producer = producerMock
+                })
+      
+                it('should send message to topic', async () => {
+                    const connectSpy = sinon.spy(kafkaHelper, 'connect')
+
+                    // connect() should be not called because we overwrite this.producer
+                    await kafkaHelper.sendMessage(msg, topic)
+                    expect(connectSpy.calledOnce).to.be.false
+                    expect(producerMock.send.calledOnce).to.be.true
+                    expect(producerMock.send.firstCall.args[0]).to.deep.equal({
+                        topic,
+                        messages: [{ value: msg }]
+                    })
+                })
+      
+                it('should throw an error if sending message fails', async () => {
+                    const error = new Error('Message sending failed')
+                    sinon.stub(kafkaHelper, 'connect').resolves()
+
+                    producerMock.send.rejects(error)
+
+                    await expect(kafkaHelper.sendMessage(msg, topic)).to.be.rejectedWith('sendMessage() - Error while sending message to topic')
+                })
+            })
+
+            describe('sendMessageAvro()', () => {
+                let producerMock
+
+                const body = {
+                    "originalBody": 'test',
+                    "errorMessage": 'Some error..',
+                    "errors": ['Any error..']
+                }
+
+                const headers = {
+                    'project-id': projectId,
+                    'mailing-id': 'test'
+                }
+
+                const topic = 'test'
+      
+                beforeEach(() => {
+                    producerMock = {
+                        connect: sinon.stub().resolves(),
+                        send: sinon.stub().resolves()
+                    }
+
+                    kafkaHelper.producer = producerMock
+                })
+      
+                it('should send avro message to topic', async () => {
+                    const connectSpy = sinon.spy(kafkaHelper, 'connect')
+
+                    // connect() should be not called because we overwrite this.producer
+                    await kafkaHelper.sendMessageAvro(body, topic, headers)
+                    expect(connectSpy.calledOnce).to.be.false
+                    expect(producerMock.send.calledOnce).to.be.true
+                    expect(producerMock.send.firstCall.args[0].messages[0].value instanceof Buffer).to.be.true
+                    expect(producerMock.send.firstCall.args[0].topic).to.be.equal(topic)
+                })
+            })
+        })
+    }
+}
+```
+
+
+
+
+
+
+
+
+
+
 <br><br>
 
 ## Send message to topic
