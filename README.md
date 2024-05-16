@@ -26,8 +26,28 @@ Kafka.js with the most needed stuff..
 ## Admin
 - https://kafka.js.org/docs/1.11.0/admin
 
+<br><br>
 
+### fetchTopicMetadata()
+- Fetch metadata of specific topic
+```javascript
+const res = await kafkaClient.admin.fetchTopicMetadata({
+    topics: [testTopics.thumbnail]
+})
+```
 
+<br><br>
+
+### deleteTopicRecords()
+- Delete records in topic
+```javascript
+await kafkaClient.admin.deleteTopicRecords({
+    topic: 'topicName',
+    partitions: [
+        { partition: 0, offset: '-1' }, // delete all available records on this partition
+    ]
+})
+```
 
 
 
