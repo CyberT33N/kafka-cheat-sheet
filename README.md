@@ -1,5 +1,42 @@
-# kafkajs-cheat-sheet
-Kafka.js with the most needed stuff..
+# kafka-cheat-sheet
+Kafka with the most needed stuff..
+
+
+
+
+
+
+
+
+
+# avro
+
+<br><br>
+<br><br>
+
+## Schema
+- https://www.npmjs.com/package/avsc
+- https://avro.apache.org/docs/1.11.1/specification/
+
+
+
+
+
+
+
+
+
+
+
+<br><br>
+<br><br>
+_______________________________________
+_______________________________________
+<br><br>
+<br><br>
+
+
+# kafka.js
 
 
 
@@ -8,7 +45,7 @@ Kafka.js with the most needed stuff..
 <br><br>
 <br><br>
 
-# DOCS
+## DOCS
 - [https://kafka.js.org/docs](https://kafka.js.org/docs/getting-started)
 
 
